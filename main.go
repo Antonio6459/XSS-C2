@@ -28,7 +28,7 @@ var (
 	submissions []Submission
 	nextID      = 1
 	dataFile    = "submissions.json"
-	tmpl        = template.Must(template.New("dash").Parse(dashboardHTML))
+	tmpl        = template.Must(template.ParseFiles("templates/index.html"))
 )
 
 func main() {
@@ -225,42 +225,3 @@ func saveSubmissions() error {
 	f.Close()
 	return os.Rename(tmp, dataFile)
 }
-
-const dashboardHTML = `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>CTF XSS Backend (Safe)</title>
-<style>
-body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:20px}
-table{border-collapse:collapse;width:100%}
-th,td{padding:8px;border:1px solid #ddd;text-align:left}
-.small{font-size:0.9em;color:#666}
-</style>
-</head>
-<body>
-<h1>CTF XSS Backend (Safe)</h1>
-<p class="small">This server is intended for CTF / lab use only. Do not use it to collect real users' cookies or other sensitive information.</p>
-<p class="small">POST to <code>/submit</code> with fields: <code>source</code>, <code>data</code>, <code>note</code>. Use JSON or form-encoded requests.</p>
-<h2>Recent submissions</h2>
-<table>
-<thead>
-<tr><th>ID</th><th>When</th><th>Source</th><th>Data</th><th>Note</th><th>IP</th></tr>
-</thead>
-<tbody>
-{{range .Submissions}}
-<tr>
-<td>{{.ID}}</td>
-<td>{{.CreatedAt.Format "2006-01-02 15:04:05"}}</td>
-<td>{{.Source}}</td>
-<td><pre style="white-space:pre-wrap;margin:0">{{.Data}}</pre></td>
-<td>{{.Note}}</td>
-<td>{{.IP}}</td>
-</tr>
-{{else}}
-<tr><td colspan="6">No submissions yet</td></tr>
-{{end}}
-</tbody>
-</table>
-</body>
-</html>`

@@ -1,25 +1,38 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document Title</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 20px;
-        }
-    </style>
+<meta charset="utf-8">
+<title>CTF XSS Backend (Safe)</title>
+<style>
+body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:20px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:8px;border:1px solid #ddd;text-align:left}
+.small{font-size:0.9em;color:#666}
+</style>
 </head>
 <body>
-
-    <h1>Hello, World!</h1>
-    <p>This is a basic HTML5 layout skeleton.</p>
-
-    <script>
-        console.log("Page has loaded successfully!");
-    </script>
+<h1>CTF XSS Backend (Safe)</h1>
+<p class="small">This server is intended for CTF / lab use only. Do not use it to collect real users' cookies or other sensitive information.</p>
+<p class="small">POST to <code>/submit</code> with fields: <code>source</code>, <code>data</code>, <code>note</code>. Use JSON or form-encoded requests.</p>
+<h2>Recent submissions</h2>
+<table>
+<thead>
+<tr><th>ID</th><th>When</th><th>Source</th><th>Data</th><th>Note</th><th>IP</th></tr>
+</thead>
+<tbody>
+{{range .Submissions}}
+<tr>
+<td>{{.ID}}</td>
+<td>{{.CreatedAt.Format "2006-01-02 15:04:05"}}</td>
+<td>{{.Source}}</td>
+<td><pre style="white-space:pre-wrap;margin:0">{{.Data}}</pre></td>
+<td>{{.Note}}</td>
+<td>{{.IP}}</td>
+</tr>
+{{else}}
+<tr><td colspan="6">No submissions yet</td></tr>
+{{end}}
+</tbody>
+</table>
 </body>
 </html>
