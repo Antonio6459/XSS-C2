@@ -57,6 +57,8 @@ func main() {
 	http.HandleFunc("/register", registerHandler)
 	// catch any incoming requests to /track/<token>
 	http.HandleFunc("/track/", trackHandler)
+	// beacon endpoint: accepts JSON {"data":"..."}
+	http.HandleFunc("/beacon", beaconHandler)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -151,6 +153,53 @@ func submitHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{"status": "ok", "id": s.ID})
+}
+
+// beaconHandler accepts POST with JSON body {"data": "..."} and records it
+func beaconHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", "POST")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var payload struct{
+		Data string `json:"data"`
+	}
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&payload); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	if len(payload.Data) > 50000 {
+		http.Error(w, "data too long", http.StatusBadRequest)
+		return
+	}
+
+	s := Submission{
+		Source:    "beacon",
+		Data:      payload.Data,
+		Note:      "beacon",
+		IP:        remoteIP(r),
+		CreatedAt: time.Now(),
+	}
+
+	mu.Lock()
+	s.ID = nextID
+	nextID++
+	submissions = append([]Submission{s}, submissions...)
+	if len(submissions) > 1000 {
+		submissions = submissions[:1000]
+	}
+	mu.Unlock()
+
+	if err := saveSubmissions(); err != nil {
+		log.Printf("warning: could not save submissions: %v", err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"status":"ok","id":s.ID})
 }
 
 // submissionsAPIHandler returns the submissions as JSON (read-only GET).
