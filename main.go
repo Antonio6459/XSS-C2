@@ -50,6 +50,7 @@ func main() {
 		os.MkdirAll(dir, 0700)
 	}
 
+	// register handlers on the default mux
 	http.HandleFunc("/", dashboardHandler)
 	http.HandleFunc("/submit", submitHandler)
 	http.HandleFunc("/submissions", submissionsAPIHandler)
@@ -66,9 +67,34 @@ func main() {
 	}
 	addr := ":" + port
 	log.Printf("starting XSS backend on %s (datafile=%s)", addr, dataFile)
-	if err := http.ListenAndServe(addr, nil); err != nil {
+	// wrap the default mux with a simple CORS middleware so preflight and
+	// Access-Control-Allow-Origin are handled globally (helps when deployed)
+	handler := corsMiddleware(http.DefaultServeMux)
+	if err := http.ListenAndServe(addr, handler); err != nil {
 		log.Fatalf("server failed: %v", err)
 	}
+}
+
+// corsMiddleware adds permissive CORS headers (lab-only) and handles OPTIONS
+// preflight requests. It applies these headers to every response so redirects
+// or other endpoints still include the necessary CORS headers.
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// For lab/CTF usage we default to allowing all origins. If you need
+		// credentialed requests, change this to echo the Origin and set
+		// Access-Control-Allow-Credentials: true (and avoid '*').
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == http.MethodOptions {
+			// Preflight request - no body
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func dashboardHandler(w http.ResponseWriter, r *http.Request) {
@@ -157,23 +183,11 @@ func submitHandler(w http.ResponseWriter, r *http.Request) {
 
 // beaconHandler accepts POST with JSON body {"data": "..."} and records it
 func beaconHandler(w http.ResponseWriter, r *http.Request) {
-	// Handle CORS preflight
-	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", "POST")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
-	// Allow any origin for lab/CTF use so cross-origin fetches succeed
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	var payload struct{
 		Data string `json:"data"`
