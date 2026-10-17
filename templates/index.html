@@ -23,6 +23,11 @@ th,td{padding:8px;border:1px solid #ddd;text-align:left}
 <p class="small">Use the returned URL from register as the endpoint. Example:</p>
 <pre class="code">fetch('https://example.com', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: 'value' }) });</pre>
 
+<h2>Capture visitor geolocation</h2>
+<p class="small">Click to attempt to get the visitor's geolocation (will prompt the user for permission). The result shows a clickable maps link and accuracy.</p>
+<button id="geoBtn">Get geolocation</button>
+<pre id="geoResult" class="code" style="display:none;margin-top:8px;white-space:pre-wrap"></pre>
+
 <h2>Recent submissions / captured requests</h2>
 <table>
 <thead>
@@ -63,6 +68,55 @@ document.getElementById('registerBtn').addEventListener('click', function(){
     btn.disabled = false;
     btn.textContent = 'Create tracking token';
   });
+});
+
+// Geolocation feature added per request
+document.getElementById('geoBtn').addEventListener('click', function(){
+  var btn = this;
+  btn.disabled = true;
+  btn.textContent = 'Locating...';
+  var resultEl = document.getElementById('geoResult');
+
+  if (!navigator.geolocation) {
+    resultEl.style.display = 'block';
+    resultEl.textContent = 'Geolocation is not supported by this browser.';
+    btn.disabled = false;
+    btn.textContent = 'Get geolocation';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(function(p) {
+    var lat = p.coords.latitude;
+    var lon = p.coords.longitude;
+    var acc = p.coords.accuracy;
+
+    // Build a user-friendly maps link
+    var mapsLink = 'https://www.google.com/maps?q=' + encodeURIComponent(lat + ',' + lon);
+
+    var out = '';
+    out += '🎯 COMPLETE MAPS LINK:\n' + mapsLink + '\n';
+    out += 'Latitude: ' + lat + '\n';
+    out += 'Longitude: ' + lon + '\n';
+    out += 'Accuracy: within ' + acc + ' meters.\n';
+
+    // Show result on the page; also log to console like the original snippet
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = out + '\n(JSON): ' + JSON.stringify({latitude: lat, longitude: lon, accuracy: acc}, null, 2);
+
+    console.log('🎯 COMPLETE MAPS LINK:');
+    console.log(mapsLink);
+    console.log('Accuracy: within ' + acc + ' meters.');
+
+    btn.disabled = false;
+    btn.textContent = 'Get geolocation';
+  }, function(e) {
+    var errMsg = 'Error: ' + (e && e.message ? e.message : e);
+    console.error(errMsg);
+    resultEl.style.display = 'block';
+    resultEl.textContent = errMsg;
+    btn.disabled = false;
+    btn.textContent = 'Get geolocation';
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
 });
 </script>
 </body>
