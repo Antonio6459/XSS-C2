@@ -1,7 +1,8 @@
 FROM golang:1.23-alpine AS builder
 WORKDIR /app
 COPY . .
-RUN go build -o main .
+
+RUN CGO_ENABLED=0 go build -o main .
 
 FROM alpine:latest
 WORKDIR /app
@@ -15,6 +16,8 @@ RUN apk add --no-cache \
     ttf-freefont
     
 COPY --from=builder /app/main .
+
+COPY --from=builder /app/templates ./templates
 
 EXPOSE 8080
 
