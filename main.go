@@ -157,11 +157,23 @@ func submitHandler(w http.ResponseWriter, r *http.Request) {
 
 // beaconHandler accepts POST with JSON body {"data": "..."} and records it
 func beaconHandler(w http.ResponseWriter, r *http.Request) {
+	// Handle CORS preflight
+	if r.Method == http.MethodOptions {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", "POST")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+
+	// Allow any origin for lab/CTF use so cross-origin fetches succeed
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	var payload struct{
 		Data string `json:"data"`
