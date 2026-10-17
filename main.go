@@ -16,8 +16,9 @@ import (
 	"time"
 )
 
-// Submission represents a single item posted to /submit or captured by /track.
-// Keep the fields generic so participants can post test flags or messages.
+// Submission represents a single item captured by /track or posted to the
+// beacon endpoint. Keep the fields generic so participants can post test
+// flags or messages.
 type Submission struct {
 	ID        int       `json:"id"`
 	Source    string    `json:"source"`    // e.g. url or tracking token where the payload ran
@@ -52,7 +53,7 @@ func main() {
 
 	// register handlers on the default mux
 	http.HandleFunc("/", dashboardHandler)
-	http.HandleFunc("/submit", submitHandler)
+	// removed /submit endpoint
 	http.HandleFunc("/submissions", submissionsAPIHandler)
 	// register to create a new tracking endpoint
 	http.HandleFunc("/register", registerHandler)
@@ -115,70 +116,6 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 	if err := tmpl.Execute(w, data); err != nil {
 		log.Printf("template execute error: %v", err)
 	}
-}
-
-// submitHandler accepts POST requests with application/json or form data.
-// For CTF safety we explicitly encourage posting non-sensitive test flags only.
-func submitHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", "POST")
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var s Submission
-
-	ct := r.Header.Get("Content-Type")
-	if ct == "application/json" || r.Header.Get("Accept") == "application/json" {
-		dec := json.NewDecoder(r.Body)
-		var tmp map[string]interface{}
-		if err := dec.Decode(&tmp); err != nil {
-			http.Error(w, "invalid json", http.StatusBadRequest)
-			return
-		}
-		if v, ok := tmp["source"].(string); ok {
-			s.Source = v
-		}
-		if v, ok := tmp["data"].(string); ok {
-			s.Data = v
-		}
-		if v, ok := tmp["note"].(string); ok {
-			s.Note = v
-		}
-	} else {
-		// form data fallback
-		r.ParseForm()
-		s.Source = r.FormValue("source")
-		s.Data = r.FormValue("data")
-		s.Note = r.FormValue("note")
-	}
-
-	// Limit length to avoid resource abuse in a shared environment.
-	if len(s.Data) > 50000 {
-		http.Error(w, "data too long", http.StatusBadRequest)
-		return
-	}
-
-	s.IP = remoteIP(r)
-	s.CreatedAt = time.Now()
-
-	mu.Lock()
-	s.ID = nextID
-	nextID++
-	submissions = append([]Submission{s}, submissions...)
-	// keep only recent 1000 in memory
-	if len(submissions) > 1000 {
-		submissions = submissions[:1000]
-	}
-	mu.Unlock()
-
-	// persist asynchronously but do a best-effort save
-	if err := saveSubmissions(); err != nil {
-		log.Printf("warning: could not save submissions: %v", err)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"status": "ok", "id": s.ID})
 }
 
 // beaconHandler accepts POST with JSON body {"data": "..."} and records it
