@@ -36,18 +36,9 @@ var (
 )
 
 func main() {
-	// allow overriding file via env for tests
-	if v := os.Getenv("XSS_C2_DATAFILE"); v != "" {
-		dataFile = v
-	}
 
 	if err := loadSubmissions(); err != nil {
 		log.Printf("warning: could not load submissions: %v", err)
-	}
-
-	// create data directory if path contains dirs
-	if dir := filepath.Dir(dataFile); dir != "." {
-		os.MkdirAll(dir, 0700)
 	}
 
 	// register handlers on the default mux
