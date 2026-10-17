@@ -19,13 +19,9 @@ th,td{padding:8px;border:1px solid #ddd;text-align:left}
 <button id="registerBtn">Create tracking token</button>
 <pre id="registerResult" class="code" style="display:none;margin-top:8px"></pre>
 
-<h2>Quick sample payloads</h2>
-<p class="small">Use the returned URL from register as the endpoint. Examples:</p>
-<ul>
-<li><span class="code">&lt;img src="&lt;TRACK_URL&gt;"/&gt;</span></li>
-<li><span class="code">&lt;script src="&lt;TRACK_URL&gt;&gt;&lt;/script&gt;</span> (if script responses are allowed)</li>
-<li><span class="code">fetch('&lt;TRACK_URL&gt;', {mode:'no-cors'})</span></li>
-</ul>
+<h2>Sample payload</h2>
+<p class="small">Use the returned URL from register as the endpoint. Example:</p>
+<pre class="code">fetch('https://example.com', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'value' }) });</pre>
 
 <h2>Recent submissions / captured requests</h2>
 <table>
