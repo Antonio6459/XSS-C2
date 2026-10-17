@@ -1,11 +1,3 @@
-// main.go
-// CTF-safe XSS backend (educational use only)
-//
-// This server provides a simple dashboard and a /submit endpoint for CTF/XSS labs.
-// It is intentionally designed for educational/CTF use and does NOT include
-// or demonstrate techniques for stealing real users' cookies or other sensitive data.
-// Do NOT deploy this on production or against third-party sites.
-
 package main
 
 import (
