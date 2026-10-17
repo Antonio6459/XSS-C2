@@ -51,35 +51,28 @@ func main() {
 	http.HandleFunc("/track/", trackHandler)
 	// beacon endpoint: accepts JSON {"data":"..."}
 	http.HandleFunc("/beacon", beaconHandler)
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	
+	port = "8080"
+	
 	}
 	addr := ":" + port
 	log.Printf("starting XSS backend on %s (datafile=%s)", addr, dataFile)
-	// wrap the default mux with a simple CORS middleware so preflight and
-	// Access-Control-Allow-Origin are handled globally (helps when deployed)
+
 	handler := corsMiddleware(http.DefaultServeMux)
 	if err := http.ListenAndServe(addr, handler); err != nil {
 		log.Fatalf("server failed: %v", err)
 	}
 }
 
-// corsMiddleware adds permissive CORS headers (lab-only) and handles OPTIONS
-// preflight requests. It applies these headers to every response so redirects
-// or other endpoints still include the necessary CORS headers.
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// For lab/CTF usage we default to allowing all origins. If you need
-		// credentialed requests, change this to echo the Origin and set
-		// Access-Control-Allow-Credentials: true (and avoid '*').
+
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 		if r.Method == http.MethodOptions {
-			// Preflight request - no body
+			
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
@@ -92,8 +85,6 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	// Render the dashboard showing recent submissions. Template uses automatic
-	// escaping to help avoid accidental reflected XSS in the admin UI.
 	data := struct {
 		Submissions []Submission
 		Now         time.Time
@@ -108,8 +99,6 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// submitHandler accepts POST requests with application/json or form data.
-// For CTF safety we explicitly encourage posting non-sensitive test flags only.
 func submitHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", "POST")
