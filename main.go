@@ -178,15 +178,9 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	token := hex.EncodeToString(b)
 	trackPath := "/track/" + token
 
-	snippet := fmt.Sprintf(`<img src="%s"/>
-<!-- or -->
-<script src="%s"></script>
-<!-- or fetch: fetch('%s', {mode:'no-cors'}) -->`, trackPath, trackPath, trackPath)
-
 	resp := map[string]any{
-		"token":   token,
-		"url":     trackPath,
-		"snippet": snippet,
+		"token": token,
+		"url":   trackPath,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -337,4 +331,3 @@ func saveSubmissions() error {
 	f.Close()
 	return os.Rename(tmp, dataFile)
 }
-
